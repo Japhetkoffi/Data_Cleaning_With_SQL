@@ -9,7 +9,7 @@ from layoffs;
 -- 4.Suppression des colonnes et lignes moins pertinantes
 
 
--- Creer une copie des données
+-- Creer une copie des données pour des raisons de sécurité
 create table layoffs_1
 like layoffs;
  
@@ -24,11 +24,13 @@ select*
 from layoffs_1;
 
 -- 1.Supprimer les doublons
+-- Affectation des indices à chaque ligne d'enrégistrement afin de détecter les doublons
 select*,
 row_number() over(
 partition by company, location, industry, total_laid_off,percentage_laid_off,'date', stage, country, funds_raised_millions)as row_num
 from layoffs_1;
 
+-- Création d'un cte
 with duplicate_cte as 
 (
 select*,
@@ -36,25 +38,21 @@ row_number() over(
 partition by company, location, industry, total_laid_off,percentage_laid_off,'date', stage, country, funds_raised_millions)as row_num
 from layoffs_1
 )
-
 select* 
 from duplicate_cte
 where row_num >1;
 
+-- Vérification (facultatif)
 select* 
 from layoffs_1
 where company = 'Cazoo';
 
-with duplicate_cte as 
-(
-select*,
-row_number() over(
-partition by company, location, industry, total_laid_off,percentage_laid_off,'date', stage, country, funds_raised_millions)as row_num
-from layoffs_1
-)
 delete
 from duplicate_cte
-where row_num >1;
+where row_num >1; 
+
+-- Ici le logiciel sortira une erreur et pour la contourner,
+-- la création d'une nouvelle table avec la colonne row_num est envisageable
 
 CREATE TABLE `layoffs_2` (
   `company` text,
@@ -72,16 +70,19 @@ CREATE TABLE `layoffs_2` (
 select* 
 from layoffs_2;
 
+-- Copie des données de layoffs_1 vers layoffs_2
 insert into layoffs_2
 select*,
 row_number() over(
 partition by company, location, industry, total_laid_off,percentage_laid_off,'date', stage, country, funds_raised_millions)as row_num
 from layoffs_1;
 
+-- Suppression des doublons
 delete
 from layoffs_2
 where row_num > 1;
 
+-- Vérification
 select*
 from layoffs_2
 where row_num > 1;
@@ -90,12 +91,15 @@ select*
 from layoffs_2;
 
 -- 2.Standardiser les Données 
+-- Suppression des espaces au début et à la fin de la colonne company
 select company, trim(company)
 from layoffs_2;
 
+-- Mise à jour de la table
 update layoffs_2
 set company = trim(company);
 
+-- Correction des incohérrences
 select *
 from layoffs_2
 where industry like 'Crypto%';
@@ -195,5 +199,7 @@ and percentage_laid_off is null;
 select*
 from layoffs_2;
 
+-- Suppression de la colonne row_num
 alter table layoffs_2
 drop row_num;
+-- Les données sont prêtes à être exploité 
